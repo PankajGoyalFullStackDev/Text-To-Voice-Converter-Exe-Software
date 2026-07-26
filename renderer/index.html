@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Voiceover Studio</title>
+<style>
+  :root{
+    --bg:#14181D; --panel:#1B2127; --panel-2:#20272E; --line:#2A323A;
+    --amber:#E8A33D; --amber-dim:#8A6A38; --teal:#3DBFAE; --text:#E8E6E1;
+    --muted:#8B9198; --danger:#D9614F;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);padding:24px;}
+  .wrap{max-width:900px;margin:0 auto;}
+  .header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px;}
+  .header h1{font-size:20px;font-weight:700;margin:0;display:flex;align-items:center;gap:10px;}
+  .header h1 .dot{width:9px;height:9px;border-radius:50%;background:var(--amber);animation:pulse 2.2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(232,163,61,.45);}70%{box-shadow:0 0 0 8px rgba(232,163,61,0);}100%{box-shadow:0 0 0 0 rgba(232,163,61,0);}}
+  .header .sub{font-size:12px;color:var(--muted);font-family:var(--mono);}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:14px;}
+  .panel-label{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:12px;font-weight:600;}
+  textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:12px;font-size:14px;line-height:1.6;min-height:120px;resize:vertical;}
+  textarea:focus{outline:none;border-color:var(--amber-dim);}
+  .row{display:flex;gap:14px;flex-wrap:wrap;}
+  .col{flex:1;min-width:200px;}
+  label.field-label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:6px;font-family:var(--mono);}
+  select, input[type=text], input[type=number]{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:9px 11px;border-radius:7px;font-size:13.5px;font-family:var(--sans);
+  }
+  .slider-row{display:flex;align-items:center;gap:10px;}
+  input[type=range]{flex:1;accent-color:var(--amber);}
+  .slider-val{font-family:var(--mono);font-size:13px;color:var(--amber);min-width:50px;text-align:right;}
+  .btn{border:none;border-radius:7px;padding:10px 16px;font-size:13.5px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--amber);color:#1A1400;}
+  .btn-teal{background:var(--teal);color:#062621;}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
+  .btn:disabled{opacity:0.35;cursor:not-allowed;}
+  .file-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .file-name{font-family:var(--mono);font-size:12.5px;color:var(--teal);}
+  .waveform{height:48px;display:flex;align-items:center;gap:3px;margin-top:14px;}
+  .waveform span{flex:1;background:var(--line);border-radius:2px;height:14%;}
+  .waveform.active span{background:var(--teal);animation:bar 0.9s ease-in-out infinite;}
+  .waveform span:nth-child(2n){animation-delay:.08s;}
+  .waveform span:nth-child(3n){animation-delay:.16s;}
+  @keyframes bar{0%,100%{height:14%;}50%{height:85%;}}
+  .stats{display:flex;gap:22px;margin-top:14px;flex-wrap:wrap;}
+  .stat{font-family:var(--mono);}
+  .stat .n{font-size:18px;color:var(--amber);font-weight:700;}
+  .stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;}
+  .status{margin-top:12px;padding:10px 13px;border-radius:7px;font-size:13px;font-family:var(--mono);display:none;}
+  .status.show{display:block;}
+  .status.ok{background:rgba(61,191,174,.12);color:var(--teal);border:1px solid rgba(61,191,174,.3);}
+  .status.err{background:rgba(217,97,79,.12);color:var(--danger);border:1px solid rgba(217,97,79,.3);}
+  .status.busy{background:rgba(232,163,61,.12);color:var(--amber);border:1px solid rgba(232,163,61,.3);}
+  audio{width:100%;margin-top:12px;display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1><span class="dot"></span>Voiceover Studio</h1>
+    <div class="sub">offline app · script &rarr; AI voice &rarr; merged video</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">01 · Your Video</div>
+    <div class="file-row">
+      <button class="btn btn-ghost" id="selectVideoBtn">Choose Video File</button>
+      <span class="file-name" id="videoName">No video selected</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">02 · Script</div>
+    <textarea id="script" spellcheck="false">Welcome to the School ERP Fee Management module. This is the Modify Receipt screen, where the admin can update or correct any existing fee receipt. Start by selecting the branch from the dropdown, then enter the receipt number and click Search. The system instantly fetches the student's complete fee record, including student ID, name, father's name, class, and section. You can also view the paid fee amount, payment date, and payment mode. If any correction is needed, such as the bank name, cheque or DD number, or remarks, simply update the fields and click Modify Slip to save the changes. This makes fee record correction quick, accurate, and hassle-free for school administrators.</textarea>
+    <div class="stats">
+      <div class="stat"><div class="n" id="wordCount">0</div><div class="l">Words</div></div>
+      <div class="stat"><div class="n" id="estDuration">0.0s</div><div class="l">Est. voice length</div></div>
+      <div class="stat"><div class="n" id="videoDuration">—</div><div class="l">Video length</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">03 · Voice Settings</div>
+    <div class="row">
+      <div class="col">
+        <label class="field-label">Voice</label>
+        <select id="voice">
+          <option value="en-IN-PrabhatNeural">en-IN-PrabhatNeural — Male, Indian English</option>
+          <option value="en-IN-NeerjaNeural">en-IN-NeerjaNeural — Female, Indian English</option>
+          <option value="en-IN-NeerjaExpressiveNeural">en-IN-NeerjaExpressiveNeural — Female, expressive</option>
+          <option value="hi-IN-MadhurNeural">hi-IN-MadhurNeural — Male, Hindi</option>
+          <option value="hi-IN-SwaraNeural">hi-IN-SwaraNeural — Female, Hindi</option>
+          <option value="en-US-GuyNeural">en-US-GuyNeural — Male, US English</option>
+          <option value="en-US-AriaNeural">en-US-AriaNeural — Female, US English</option>
+        </select>
+      </div>
+      <div class="col">
+        <label class="field-label">Speed</label>
+        <div class="slider-row">
+          <input type="range" id="rate" min="-50" max="50" step="1" value="0">
+          <span class="slider-val" id="rateVal">+0%</span>
+        </div>
+      </div>
+      <div class="col">
+        <label class="field-label">Pitch</label>
+        <div class="slider-row">
+          <input type="range" id="pitch" min="-50" max="50" step="1" value="0">
+          <span class="slider-val" id="pitchVal">+0Hz</span>
+        </div>
+      </div>
+    </div>
+    <div class="file-row" style="margin-top:16px;">
+      <button class="btn btn-primary" id="generateBtn">Generate AI Voice</button>
+      <button class="btn btn-ghost" id="matchBtn">Match speed to video length</button>
+      <button class="btn btn-ghost" id="saveAudioBtn" disabled>Save Audio Only (.mp3)</button>
+    </div>
+    <div class="waveform" id="waveform"></div>
+    <audio id="audioPreview" controls></audio>
+    <div class="status" id="genStatus"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">04 · Merge &amp; Export</div>
+    <div class="file-row">
+      <button class="btn btn-teal" id="mergeBtn" disabled>Merge Voice into Video &amp; Save</button>
+    </div>
+    <div class="status" id="mergeStatus"></div>
+  </div>
+
+</div>
+
+<script>
+const scriptEl = document.getElementById('script');
+const wordCountEl = document.getElementById('wordCount');
+const estDurationEl = document.getElementById('estDuration');
+const videoDurationEl = document.getElementById('videoDuration');
+const rateEl = document.getElementById('rate');
+const rateValEl = document.getElementById('rateVal');
+const pitchEl = document.getElementById('pitch');
+const pitchValEl = document.getElementById('pitchVal');
+const voiceEl = document.getElementById('voice');
+const selectVideoBtn = document.getElementById('selectVideoBtn');
+const videoNameEl = document.getElementById('videoName');
+const generateBtn = document.getElementById('generateBtn');
+const matchBtn = document.getElementById('matchBtn');
+const saveAudioBtn = document.getElementById('saveAudioBtn');
+const mergeBtn = document.getElementById('mergeBtn');
+const waveform = document.getElementById('waveform');
+const audioPreview = document.getElementById('audioPreview');
+const genStatus = document.getElementById('genStatus');
+const mergeStatus = document.getElementById('mergeStatus');
+
+const BASE_WPM = 150;
+let videoPath = null;
+let videoDurationSec = null;
+let generatedAudioPath = null;
+
+for(let i=0;i<40;i++){
+  const b = document.createElement('span');
+  waveform.appendChild(b);
+}
+
+function wordCount(text){
+  const t = text.trim();
+  return t ? t.split(/\s+/).length : 0;
+}
+function currentRateMultiplier(){
+  return 1 + (parseInt(rateEl.value,10)/100);
+}
+function updateStats(){
+  const words = wordCount(scriptEl.value);
+  wordCountEl.textContent = words;
+  const dur = (words / (BASE_WPM * currentRateMultiplier())) * 60;
+  estDurationEl.textContent = dur.toFixed(1) + 's';
+}
+scriptEl.addEventListener('input', updateStats);
+rateEl.addEventListener('input', ()=>{
+  const v = parseInt(rateEl.value,10);
+  rateValEl.textContent = (v>=0?'+':'') + v + '%';
+  updateStats();
+});
+pitchEl.addEventListener('input', ()=>{
+  const v = parseInt(pitchEl.value,10);
+  pitchValEl.textContent = (v>=0?'+':'') + v + 'Hz';
+});
+
+selectVideoBtn.addEventListener('click', async ()=>{
+  const p = await window.studio.selectVideo();
+  if(!p) return;
+  videoPath = p;
+  videoNameEl.textContent = p.split(/[\\/]/).pop();
+  const dur = await window.studio.probeDuration(p);
+  if(dur){
+    videoDurationSec = dur;
+    videoDurationEl.textContent = dur.toFixed(1) + 's';
+  }
+  mergeBtn.disabled = !(videoPath && generatedAudioPath);
+});
+
+matchBtn.addEventListener('click', ()=>{
+  if(!videoDurationSec){
+    alert('Pehle video select karo, taaki target length pata chale.');
+    return;
+  }
+  const words = wordCount(scriptEl.value);
+  if(!words) return;
+  const neededMultiplier = words / (BASE_WPM/60) / videoDurationSec;
+  let pct = Math.round((neededMultiplier - 1) * 100);
+  pct = Math.max(-50, Math.min(50, pct));
+  rateEl.value = pct;
+  rateValEl.textContent = (pct>=0?'+':'') + pct + '%';
+  updateStats();
+});
+
+function setStatus(el, kind, msg){
+  el.className = 'status show ' + kind;
+  el.textContent = msg;
+}
+
+generateBtn.addEventListener('click', async ()=>{
+  const text = scriptEl.value.trim();
+  if(!text){ alert('Script likho pehle.'); return; }
+  generateBtn.disabled = true;
+  waveform.classList.add('active');
+  setStatus(genStatus, 'busy', 'Generating voice... (internet required for this step)');
+  const ratePct = (parseInt(rateEl.value,10) >= 0 ? '+' : '') + rateEl.value + '%';
+  const pitchPct = (parseInt(pitchEl.value,10) >= 0 ? '+' : '') + pitchEl.value + 'Hz';
+
+  const result = await window.studio.generateAudio({
+    text, voice: voiceEl.value, ratePct, pitchPct
+  });
+
+  waveform.classList.remove('active');
+  generateBtn.disabled = false;
+
+  if(result.ok){
+    generatedAudioPath = result.path;
+    audioPreview.src = 'file://' + result.path;
+    audioPreview.style.display = 'block';
+    setStatus(genStatus, 'ok', '✓ Voice generated — preview above. Path: ' + result.path);
+    mergeBtn.disabled = !(videoPath && generatedAudioPath);
+    saveAudioBtn.disabled = false;
+  } else {
+    setStatus(genStatus, 'err', '✗ Failed: ' + result.error + ' (check your internet connection)');
+  }
+});
+
+saveAudioBtn.addEventListener('click', async ()=>{
+  if(!generatedAudioPath) return;
+  const result = await window.studio.saveAudio(generatedAudioPath);
+  if(result.ok){
+    setStatus(genStatus, 'ok', '✓ Audio saved separately: ' + result.path);
+  } else if(result.error !== 'cancelled'){
+    setStatus(genStatus, 'err', '✗ Failed to save audio: ' + result.error);
+  }
+});
+
+mergeBtn.addEventListener('click', async ()=>{
+  if(!videoPath || !generatedAudioPath) return;
+  mergeBtn.disabled = true;
+  setStatus(mergeStatus, 'busy', 'Merging video + voice...');
+  const result = await window.studio.mergeVideo({ videoPath, audioPath: generatedAudioPath });
+  mergeBtn.disabled = false;
+  if(result.ok){
+    setStatus(mergeStatus, 'ok', '✓ Saved: ' + result.path);
+  } else if(result.error !== 'cancelled'){
+    setStatus(mergeStatus, 'err', '✗ Failed: ' + result.error);
+  } else {
+    mergeStatus.className = 'status';
+  }
+});
+
+updateStats();
+</script>
+</body>
+</html>
